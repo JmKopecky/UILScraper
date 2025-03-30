@@ -122,7 +122,7 @@ public class ScrapeUILResults {
         System.out.println();
         String level = "";
         while (true) {
-            System.out.println("Input either state, region, or district");
+            System.out.println("Input the competition level: (state, region, or district)");
             String confTest = scanInput.nextLine().trim();
             if (confTest.equals("state") || confTest.equals("region") || confTest.equals("district")) {
                 level = confTest;
@@ -131,6 +131,101 @@ public class ScrapeUILResults {
                 System.out.println("Incorrectly formatted. Please input a string matching your target exactly");
             }
         }
+
+        //check if a specific district is required
+        System.out.println();
+        int specifiedDistrict = -1;
+        if (level.equals("district")) {
+            while (true) {
+                System.out.println("Do you want to see results for a specific district? (y/n)");
+                String response = scanInput.nextLine().trim();
+                if (response.equals("y")) {
+                    while (true) {
+                        System.out.println("Specify a district number: (1-32)");
+                        try {
+                            int dist = Integer.parseInt(scanInput.nextLine());
+                            if (dist >= 1 && dist <= 32) {
+                                specifiedDistrict = dist;
+                                break;
+                            }
+                            System.out.println("Invalid input: format should be (1-32)");
+                        } catch (Exception _) {
+                            System.out.println("Invalid input: format should be (1-32)");
+                        }
+                    }
+                    break;
+                }
+                if (response.equals("n")) {
+                    break;
+                }
+                System.out.println("Invalid input... please respond with y or n");
+            }
+        }
+
+
+        //check if a specific region is desired
+        System.out.println();
+        int specifiedRegion = -1;
+        if (level.equals("region")) {
+            while (true) {
+                System.out.println("Do you want to see results for a specific region? (y/n)");
+                String response = scanInput.nextLine().trim();
+                if (response.equals("y")) {
+                    while (true) {
+                        System.out.println("Specify a region number: (1-4)");
+                        try {
+                            int reg = Integer.parseInt(scanInput.nextLine());
+                            if (reg >= 1 && reg <= 4) {
+                                specifiedRegion = reg;
+                                break;
+                            }
+                            System.out.println("Invalid input: format should be (1-4)");
+                        } catch (Exception _) {
+                            System.out.println("Invalid input: format should be (1-4)");
+                        }
+                    }
+                    break;
+                }
+                if (response.equals("n")) {
+                    break;
+                }
+                System.out.println("Invalid input... please respond with y or n");
+            }
+        }
+
+
+        //see if a specific region of districts is desired
+        System.out.println();
+        int distsInRegion = -1;
+        if (level.equals("district") && specifiedDistrict == -1) {
+            while (true) {
+                System.out.println("Do you want to see results for districts in a specific region? (y/n)");
+                String response = scanInput.nextLine().trim();
+                if (response.equals("y")) {
+                    while (true) {
+                        System.out.println("Specify a region number: (1-4)");
+                        try {
+                            int reg = Integer.parseInt(scanInput.nextLine());
+                            if (reg >= 1 && reg <= 4) {
+                                distsInRegion = reg;
+                                break;
+                            }
+                            System.out.println("Invalid input: format should be (1-4)");
+                        } catch (Exception _) {
+                            System.out.println("Invalid input: format should be (1-4)");
+                        }
+                    }
+                    break;
+                }
+                if (response.equals("n")) {
+                    break;
+                }
+                System.out.println("Invalid input... please respond with y or n");
+            }
+        }
+
+
+
 
         //base for reference: "https://postings.speechwire.com/r-uil-academics.php?groupingid=ID_COMP&Submit=View+postings&AREA_TYPE=ID_AREA&conference=ID_CONF&seasonid=ID_SEASON";
         String newURL = urlString.replace("AREA_TYPE", level);
@@ -144,48 +239,115 @@ public class ScrapeUILResults {
         System.out.println("--- Setup Succeeded ---\n\n\n");
 
 
+        System.out.println("Retrieving Data...");
+
+        ArrayList<IndividualResult> individualResults = new ArrayList<>();
+        ArrayList<TeamResult> teamResults = new ArrayList<>();
+
         if (conference.equals("-1")) {
             for (int i = 1; i <= 6; i++) {
-                //if state, max ID_AREA is 1. If region, 4. If district, 32
                 newURL = newURL.replace("=-1", "=" + i);
-                switch (level) {
-                    case "state" -> {
-                        retrieveData(newURL, 1, competition);
+                HashMap<Integer, ArrayList<Object>> data = doSpawnDataRetrievers(newURL, competition, level, distsInRegion, specifiedRegion, specifiedDistrict);
+                for (Map.Entry<Integer, ArrayList<Object>> entry : data.entrySet()) {
+                    for (IndividualResult result : (ArrayList<IndividualResult>) entry.getValue().get(0)) {
+                        result.setDistrict(String.valueOf(entry.getKey()));
+                        result.setConference(String.valueOf(i));
+                        individualResults.add(result);
                     }
-
-                    case "region" -> {
-                        retrieveData(newURL, 4, competition);
-                    }
-
-                    case "district" -> {
-                        retrieveData(newURL, 32, competition);
+                    for (TeamResult result : (ArrayList<TeamResult>) entry.getValue().get(1)) {
+                        result.setDistrict(String.valueOf(entry.getKey()));
+                        result.setConference(String.valueOf(i));
+                        teamResults.add(result);
                     }
                 }
             }
         } else {
-            switch (level) {
-                case "state" -> {
-                    retrieveData(newURL, 1, competition);
+            HashMap<Integer, ArrayList<Object>> data = doSpawnDataRetrievers(newURL, competition, level, distsInRegion, specifiedRegion, specifiedDistrict);
+            for (Map.Entry<Integer, ArrayList<Object>> entry : data.entrySet()) {
+                for (IndividualResult result : (ArrayList<IndividualResult>) entry.getValue().get(0)) {
+                    result.setDistrict(String.valueOf(entry.getKey()));
+                    result.setConference(conference);
+                    individualResults.add(result);
                 }
-
-                case "region" -> {
-                    retrieveData(newURL, 4, competition);
-                }
-
-                case "district" -> {
-                    retrieveData(newURL, 32, competition);
+                for (TeamResult result : (ArrayList<TeamResult>) entry.getValue().get(1)) {
+                    result.setDistrict(String.valueOf(entry.getKey()));
+                    result.setConference(conference);
+                    teamResults.add(result);
                 }
             }
         }
 
 
+        //output data
+        System.out.println("\n\n ---- Output ---- ");
+
+        System.out.println("\n\nIndividual Results:");
+        Collections.sort(individualResults);
+        int counter = 1;
+        for (IndividualResult result : individualResults) {
+            if (conference.equals("-1")) {
+                System.out.printf("\t%-5d - %5.0f: {d%-2s} %s (%sA) %s\n", counter, result.score, result.district, result.name, result.conference, result.school);
+            } else {
+                System.out.printf("\t%-5d - %5.0f: {d%-2s} %s (%s)\n", counter, result.score, result.district, result.name, result.school);
+            }
+            counter++;
+        }
+
+        System.out.println("\n\nTeam Results:");
+        Collections.sort(teamResults);
+        counter = 1;
+        for (TeamResult result : teamResults) {
+            if (conference.equals("-1")) {
+                System.out.printf("\t%-5d - %5.0f: {d%-2s} %s (%sA)\n", counter, result.score, result.district, result.school, result.conference);
+            } else {
+                System.out.printf("\t%-5d - %5.0f: {d%-2s} %s\n", counter, result.score, result.district, result.school);
+            }
+            counter++;
+        }
+    }
+
+
+    public static HashMap<Integer, ArrayList<Object>> doSpawnDataRetrievers(String url, String competition, String level, int distsInRegion, int targetRegion, int targetDist) {
+        //if state, max ID_AREA is 1. If region, 4. If district, 32
+
+        HashMap<Integer, ArrayList<Object>> data = null;
+
+        switch (level) {
+            case "state" -> {
+                data = retrieveData(url, 1, 1, competition);
+            }
+
+            case "region" -> {
+                if (targetRegion != -1) {
+                    data = retrieveData(url, targetRegion, targetRegion, competition);
+                } else {
+                    data = retrieveData(url, 1, 4, competition);
+                }
+            }
+
+            case "district" -> {
+                if (targetDist != -1) {
+                    data = retrieveData(url, targetDist, targetDist, competition);
+                } else {
+                    if (distsInRegion != -1) {
+                        data = retrieveData(url, 1 + (8 * (distsInRegion - 1)), 8 * (distsInRegion), competition);
+                    } else {
+                        data = retrieveData(url, 1, 32, competition);
+                    }
+                }
+            }
+        }
+
+        return data;
     }
 
 
     //start of util methods
 
-    public static void retrieveData(String newURL, int iterations, String comp) {
-        for (int i = 1; i <= iterations; i++) {
+    public static HashMap<Integer, ArrayList<Object>> retrieveData(String newURL, int start, int end, String comp) {
+        HashMap<Integer, ArrayList<Object>> data = new HashMap<>();
+
+        for (int i = start; i <= end; i++) {
             String urlToUse = newURL.replace("ID_AREA", "" + i);
             Document doc;
             try {
@@ -195,10 +357,10 @@ public class ScrapeUILResults {
                 continue;
             }
 
-            //System.out.println(doc.html());
-            parseData(doc, comp);
-
+            data.put(i, parseData(doc, comp));
         }
+
+        return data;
     }
 
 
@@ -239,7 +401,12 @@ public class ScrapeUILResults {
     }
 
 
-    public static void parseData(Document doc, String comp) {
+    public static ArrayList<Object> parseData(Document doc, String comp) {
+
+        ArrayList<IndividualResult> individualResults = new ArrayList<>();
+        ArrayList<TeamResult> teamResults = new ArrayList<>();
+
+
         doc.getElementsByTag("tbody").forEach((table) -> {
 
             try {
@@ -247,20 +414,19 @@ public class ScrapeUILResults {
                 //if first column header is place, this is a table we care about.
                 if (headerRow.getElementsByTag("td").first().text().equals("Place")) {
                     //if fourth column has heading "Code", then it is individual. Else, team.
-
                     if (headerRow.getElementsByTag("td").get(3).text().equals("Code")) {
 
-                        System.out.println("\n\n\n\n\n\n\n\n\n --- Individual Results ---");
+
 
                         //in order to determine which column has score data, count until we reach either "Written" or "Total Score"
                         int column = 0;
                         for (Element colHeader : headerRow) {
                             if (colHeader.text().equals("Written") || colHeader.text().equals("Total")) {
+                                column--;
                                 break;
                             }
                             column++;
                         }
-                        ArrayList<IndividualResult> results = new ArrayList<>();
                         //now that we know which column to get, go through each row and build the data necessary for an IndividualResult object
                         Iterator<Element> rowIterator = table.getElementsByTag("tr").iterator();
                         rowIterator.next();
@@ -271,20 +437,55 @@ public class ScrapeUILResults {
                             String name = row.getElementsByTag("td").get(2).text();
                             String code = row.getElementsByTag("td").get(3).text();
                             double score = Double.parseDouble(row.getElementsByTag("td").get(column).text());
-                            results.add(new IndividualResult(name, school, code, score, place));
+                            individualResults.add(new IndividualResult(name, school, code, score, place));
                         }
-                        Collections.sort(results);
-                        results.forEach(System.out::println);
                     } else {
 
-                        System.out.println("\n\n\n\n\n\n\n\n\n --- Team Results ---");
 
+
+                        int column = 0;
+                        for (Element colHeader : headerRow) {
+                            if (colHeader.text().equals("Total")) {
+                                column--;
+                                break;
+                            }
+                            column++;
+                        }
+                        //now that we know which column to get, go through each row and build the data necessary for an IndividualResult object
+                        Iterator<Element> rowIterator = table.getElementsByTag("tr").iterator();
+                        rowIterator.next();
+                        while (rowIterator.hasNext()) {
+                            Element row = rowIterator.next();
+                            String place = row.getElementsByTag("td").get(0).text();
+                            String schoolText = row.getElementsByTag("td").get(1).html();
+                            double score = Double.parseDouble(row.getElementsByTag("td").get(column).text());
+                            ArrayList<String> parsedSchoolContent = new ArrayList<>();
+                            for (String val : schoolText.split("<br>")) {
+                                //parse this html to remove extra stuff
+                                while (val.contains("<") && val.contains(">")) {
+                                    val = val.substring(0,val.indexOf("<")) + val.substring(val.indexOf(">") + 1);
+                                }
+                                val = val.trim();
+                                parsedSchoolContent.add(val);
+                            }
+                            String school = parsedSchoolContent.removeFirst();
+                            teamResults.add(new TeamResult(school, parsedSchoolContent, score, place));
+                        }
                     }
                 }
             } catch (NullPointerException _) {
 
             }
         });
+
+
+        Collections.sort(individualResults);
+        Collections.sort(teamResults);
+
+        ArrayList<Object> output = new ArrayList<>();
+        output.add(individualResults);
+        output.add(teamResults);
+        return output;
     }
 }
 
@@ -296,6 +497,8 @@ class IndividualResult implements Comparable<IndividualResult> {
     String code;
     double score;
     String place;
+    String district = "unset";
+    String conference = "unset";
 
     public IndividualResult(String name, String school, String code, double score, String place) {
         this.name = name;
@@ -305,6 +508,16 @@ class IndividualResult implements Comparable<IndividualResult> {
         this.place = place;
     }
 
+
+    public void setDistrict(String dist) {
+        this.district = dist;
+    }
+
+    public void setConference(String conf) {
+        this.conference = conf;
+    }
+
+
     @Override
     public int compareTo(IndividualResult o) {
         return -1 * Double.compare(this.score, o.score);
@@ -312,6 +525,44 @@ class IndividualResult implements Comparable<IndividualResult> {
 
     @Override
     public String toString() {
-        return String.format("%-5s - %4.0f: %s (%s)", place, score, name, school);
+        return String.format("%4.0f: %s (%s)", score, name, school);
+    }
+}
+
+
+
+class TeamResult implements Comparable<TeamResult> {
+    String school;
+    ArrayList<String> students;
+    double score;
+    String place;
+    String district = "unset";
+    String conference = "unset";
+
+    public TeamResult(String school, ArrayList<String> students, double score, String place) {
+        this.school = school;
+        this.students = students;
+        this.score = score;
+        this.place = place;
+    }
+
+
+    public void setDistrict(String dist) {
+        this.district = dist;
+    }
+
+    public void setConference(String conf) {
+        this.conference = conf;
+    }
+
+
+    @Override
+    public int compareTo(TeamResult o) {
+        return -1 * Double.compare(this.score, o.score);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%4.0f: %s", score, school);
     }
 }
